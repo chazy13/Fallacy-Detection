@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🇵🇭 Filipino Political Speech Fallacy Detector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1000px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .nav-tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #e9ecef; }
+        .nav-tab {
+            flex: 1; padding: 18px; text-align: center;
+            cursor: pointer; background: transparent;
+            border: none; font-size: .95rem; font-weight: 500;
+            transition: .3s; color: #6c757d;
+        }
+        .nav-tab:hover { background: #e9ecef; }
+        .nav-tab.active {
+            background: white; color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .speech-input {
+            width: 100%; min-height: 200px; resize: vertical;
+            padding: 15px; border: 2px solid #e9ecef;
+            border-radius: 10px; font-size: 1rem;
+        }
+
+        .speech-input:focus { border-color: #667eea; outline: none; }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; padding: 15px 40px;
+            border-radius: 10px; cursor: pointer; width: 100%;
+            margin-top: 20px; font-weight: 600; font-size: 1rem;
+        }
+
+        .loading { text-align: center; padding: 20px; display: none; }
+        .spinner {
+            border: 3px solid #f3f3f3; border-top: 3px solid #667eea;
+            border-radius: 50%; width: 40px; height: 40px;
+            margin: 0 auto; animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0%{transform:rotate(0)} 100%{transform:rotate(360)} }
+
+        .results-section { display: none; margin-top: 20px; }
+
+        .sentence-card {
+            background: #fff; border: 1px solid #e9ecef;
+            border-radius: 10px; padding: 20px; margin-bottom: 20px;
+        }
+        .sentence-text {
+            background: #f8f9fa; padding: 12px;
+            border-radius: 6px; font-style: italic;
+        }
+        .fallacy-detail {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px; border-radius: 6px;
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>🇵🇭 Filipino Political Speech Fallacy Detector</h1>
+            <p>Patterns of Deception: A Pushdown Automata Approach</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('analyze')">Analyze Speech</button>
+            <button class="nav-tab" onclick="switchTab('guide')">Fallacy Guide</button>
+            <button class="nav-tab" onclick="switchTab('examples')">Examples</button>
+        </div>
+
+        <div class="content">
+            <div id="analyze" class="tab-content active">
+                <label style="font-weight:600">Enter Political Speech (SONA, Transcript, Paragraphs):</label>
+                <textarea id="speechInput" class="speech-input"
+                    placeholder="Paste long speeches here (ex: SONA 2025)..."></textarea>
+
+                <button class="analyze-btn" onclick="analyzeSpeech()">🔍 Analyze for Fallacies</button>
+
+                <div id="loadingSection" class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing speech patterns...</p>
+                </div>
+
+                <div id="resultsSection" class="results-section"></div>
+            </div>
+
+            <div id="guide" class="tab-content">
+                <div id="guideContent"></div>
+            </div>
+
+            <div id="examples" class="tab-content">
+                <div id="examplesContent"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="fallacy_detector.js"></script>
+
+</body>
+</html>

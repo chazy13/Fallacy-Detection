@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🇵🇭 Filipino Political Speech Fallacy Detector - PDA Approach</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .header p { font-size: 1.1rem; opacity: 0.95; }
+
+        .nav-tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #e9ecef; }
+        .nav-tab {
+            flex: 1; padding: 18px; text-align: center;
+            cursor: pointer; background: transparent;
+            border: none; font-size: .95rem; font-weight: 500;
+            transition: .3s; color: #6c757d;
+        }
+        .nav-tab:hover { background: #e9ecef; }
+        .nav-tab.active {
+            background: white; color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .content { padding: 30px; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .speech-input {
+            width: 100%; min-height: 200px; resize: vertical;
+            padding: 15px; border: 2px solid #e9ecef;
+            border-radius: 10px; font-size: 1rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .speech-input:focus { border-color: #667eea; outline: none; }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; padding: 15px 40px;
+            border-radius: 10px; cursor: pointer; width: 100%;
+            margin-top: 20px; font-weight: 600; font-size: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .analyze-btn:hover { transform: translateY(-2px); }
+
+        .loading { text-align: center; padding: 20px; display: none; }
+        .spinner {
+            border: 3px solid #f3f3f3; border-top: 3px solid #667eea;
+            border-radius: 50%; width: 40px; height: 40px;
+            margin: 0 auto; animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+
+        .results-section { display: none; margin-top: 20px; }
+
+        .pipeline-visual {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #dee2e6;
+        }
+
+        .pipeline-stage {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .pipeline-stage h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .token-display {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .token {
+            display: inline-block;
+            background: #e7f3ff;
+            border: 1px solid #667eea;
+            padding: 4px 8px;
+            margin: 3px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .token.fallacy {
+            background: #fff3cd;
+            border-color: #ffc107;
+            font-weight: 600;
+        }
+
+        .sentence-card {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .sentence-text {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            font-style: italic;
+        }
+
+        .fallacy-detail {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .state-diagram {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 2px solid #e9ecef;
+        }
+
+        .state-transition {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .state-box {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .arrow {
+            margin: 0 15px;
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .guide-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .guide-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .fallacy-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #764ba2;
+        }
+
+        .example-box {
+            background: #e7f3ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 8px 0;
+            font-style: italic;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .no-fallacy {
+            text-align: center;
+            padding: 40px;
+            background: #d4edda;
+            border-radius: 10px;
+            color: #155724;
+        }
+
+        .automata-info {
+            background: linear-gradient(135deg, #e7f3ff 0%, #f0e7ff 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid #667eea;
+        }
+
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>🇵🇭 Filipino Political Speech Fallacy Detector</h1>
+            <p>Pushdown Automata Approach with Lexical Analysis Pipeline</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('analyze')">Analyze Speech</button>
+            <button class="nav-tab" onclick="switchTab('pipeline')">Processing Pipeline</button>
+            <button class="nav-tab" onclick="switchTab('automata')">Automata Design</button>
+            <button class="nav-tab" onclick="switchTab('guide')">Fallacy Guide</button>
+        </div>
+
+        <div class="content">
+            <!-- ANALYZE TAB -->
+            <div id="analyze" class="tab-content active">
+                <h2>📝 Speech Input</h2>
+                <label style="font-weight:600; display: block; margin: 15px 0;">Enter Political Speech (SONA, Transcript, Paragraphs):</label>
+                <textarea id="speechInput" class="speech-input" 
+                    placeholder="Paste long speeches here (e.g., SONA 2025, campaign speeches)..."></textarea>
+
+                <button class="analyze-btn" onclick="analyzeSpeech()">🔍 Analyze for Fallacies</button>
+
+                <div id="loadingSection" class="loading">
+                    <div class="spinner"></div>
+                    <p>Processing through lexical analysis pipeline...</p>
+                </div>
+
+                <div id="resultsSection" class="results-section"></div>
+            </div>
+
+            <!-- PIPELINE TAB -->
+            <div id="pipeline" class="tab-content">
+                <h2>🔄 Processing Pipeline Visualization</h2>
+                <div class="automata-info">
+                    <h3>📋 Phase 3 Implementation Details</h3>
+                    <p><strong>Tasks 8-12:</strong> Automata Theory & System Design</p>
+                    <p><strong>Tasks 13-14:</strong> Data Structure Planning & Linguistics Research</p>
+                    <p><strong>Tasks 15-19:</strong> Data Collection, UI/Demo, Progress Review</p>
+                </div>
+
+                <div id="pipelineContent"></div>
+            </div>
+
+            <!-- AUTOMATA TAB -->
+            <div id="automata" class="tab-content">
+                <h2>🤖 Pushdown Automata Design</h2>
+                <div id="automataContent"></div>
+            </div>
+
+            <!-- GUIDE TAB -->
+            <div id="guide" class="tab-content">
+                <h2>📚 Logical Fallacy Guide</h2>
+                <div id="guideContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== PHASE 3: TASK 8-10 - AUTOMATA FORMAL DEFINITION ====================
+        
+        // Pushdown Automata (PDA) Formal Definition
+        const PDA_DEFINITION = {
+            states: ['q0', 'q1', 'q2', 'q3', 'q4'],
+            inputAlphabet: ['word', 'punctuation', 'whitespace'],
+            stackAlphabet: ['Z0', 'TOKEN', 'PHRASE'],
+            transitions: {
+                'q0': { 'word': 'q1', 'whitespace': 'q0' },
+                'q1': { 'word': 'q2', 'whitespace': 'q1', 'punctuation': 'q3' },
+                'q2': { 'word': 'q2', 'whitespace': 'q1', 'punctuation': 'q3' },
+                'q3': { 'word': 'q1', 'whitespace': 'q0' },
+                'q4': {} // Accept state
+            },
+            startState: 'q0',
+            acceptStates: ['q3', 'q4']
+        };
+
+        // ==================== PHASE 3: TASK 11-12 - PROCESSING PIPELINE ====================
+        
+        // TASK 12: Processing Pipeline Design (Tokenization, Parsing)
+        class LexicalAnalyzer {
+            constructor() {
+                this.tokens = [];
+                this.currentState = 'q0';
+                this.stack = ['Z0'];
+            }
+
+            // Stage 1: Tokenization
+            tokenize(text) {
+                const tokens = [];
+                const words = text.match(/\b[\w'-]+\b|[.,!?;:]|\s+/g) || [];
+                
+                for (let word of words) {
+                    if (/\s+/.test(word)) {
+                        tokens.push({ type: 'WHITESPACE', value: word });
+                    } else if (/[.,!?;:]/.test(word)) {
+                        tokens.push({ type: 'PUNCTUATION', value: word });
+                    } else {
+                        tokens.push({ type: 'WORD', value: word.toLowerCase() });
+                    }
+                }
+                
+                this.tokens = tokens;
+                return tokens;
+            }
+
+            // Stage 2: Lexical Analysis (Pattern Matching)
+            analyzeLexemes(tokens) {
+                const lexemes = [];
+                
+                for (let i = 0; i < tokens.length; i++) {
+                    const token = tokens[i];
+                    
+                    if (token.type === 'WORD') {
+                        // Check against fallacy patterns
+                        const fallacyMatch = this.matchFallacyPattern(token.value, tokens, i);
+                        
+                        if (fallacyMatch) {
+                            lexemes.push({
+                                type: 'FALLACY_LEXEME',
+                                value: token.value,
+                                fallacyType: fallacyMatch.type,
+                                position: i,
+                                context: this.getContext(tokens, i)
+                            });
+                        } else {
+                            lexemes.push({
+                                type: 'NORMAL_LEXEME',
+                                value: token.value,
+                                position: i
+                            });
+                        }
+                    }
+                }
+                
+                return lexemes;
+            }
+
+            // Stage 3: Parsing (Phrase Structure)
+            parse(lexemes) {
+                const phrases = [];
+                let currentPhrase = [];
+                
+                for (let lexeme of lexemes) {
+                    currentPhrase.push(lexeme);
+                    
+                    // Phrase boundary detection
+                    if (lexeme.type === 'FALLACY_LEXEME' || currentPhrase.length > 10) {
+                        if (currentPhrase.length > 0) {
+                            phrases.push({
+                                lexemes: [...currentPhrase],
+                                hasFallacy: currentPhrase.some(l => l.type === 'FALLACY_LEXEME')
+                            });
+                            currentPhrase = [];
+                        }
+                    }
+                }
+                
+                if (currentPhrase.length > 0) {
+                    phrases.push({
+                        lexemes: currentPhrase,
+                        hasFallacy: currentPhrase.some(l => l.type === 'FALLACY_LEXEME')
+                    });
+                }
+                
+                return phrases;
+            }
+
+            // Stage 4: State Machine Transition
+            transition(symbol) {
+                const transitions = PDA_DEFINITION.transitions[this.currentState];
+                if (transitions && transitions[symbol]) {
+                    this.currentState = transitions[symbol];
+                    return true;
+                }
+                return false;
+            }
+
+            matchFallacyPattern(word, tokens, position) {
+                for (let fallacy of FALLACY_PATTERNS) {
+                    for (let pattern of fallacy.patterns) {
+                        if (pattern.test(word)) {
+                            return { type: fallacy.type, pattern: pattern };
+                        }
+                    }
+                }
+                return null;
+            }
+
+            getContext(tokens, position, range = 3) {
+                const start = Math.max(0, position - range);
+                const end = Math.min(tokens.length, position + range + 1);
+                return tokens.slice(start, end).map(t => t.value).join('');
+            }
+        }
+
+        // ==================== PHASE 3: TASK 13-14 - DATA STRUCTURES & FALLACY CATALOG ====================
+        
+        const FALLACY_PATTERNS = [
+            {
+                type: "Ad Hominem (Personal Attack)",
+                patterns: [
+                    /\b(bobo|tanga|gago|engot|ulol|abnoy|ignorante|tonto|tangina|stupid|dumb)\b/gi,
+                    /\b(walang alam|walang kwenta|palpak|inutil)\b/gi,
+                    /\b(mahina utak|bakit ka nakikinig)\b/gi
+                ],
+                description: "Attacks the person instead of addressing the argument",
+                example: "Huwag kayong makinig sa kanya, bobo naman yan!",
+                severity: "high"
+            },
+            {
+                type: "Appeal to Emotion",
+                patterns: [
+                    /\b(kawawa|nakakaawa|nakakalungkot|kaawa-awa|awa|maawa)\b/gi,
+                    /\b(para sa kinabukasan|para sa mga bata|para sa ating mga anak)\b/gi,
+                    /\b(isipin niyo|puso|damdamin)\b/gi
+                ],
+                description: "Uses emotional manipulation to persuade instead of logical reasoning",
+                example: "Kawawa naman ang mga bata kung hindi ninyo ako susuportahan.",
+                severity: "medium"
+            },
+            {
+                type: "Bandwagon Fallacy",
+                patterns: [
+                    /\b(lahat|karamihan|most people|majority|marami)\b.*\b(sumusuporta|sang-ayon|bobotohin|naniniwala)\b/gi,
+                    /\b(uso na|trend|trending|sikat|popular)\b/gi,
+                    /\b(sumali na kayo|sama na)\b/gi
+                ],
+                description: "Claims something is true because many people believe it",
+                example: "Lahat naman ng tao sumusuporta sa akin, kaya dapat sumama na kayo!",
+                severity: "medium"
+            },
+            {
+                type: "False Dilemma",
+                patterns: [
+                    /\b(o ako o siya|o sila o tayo|either|or)\b/gi,
+                    /\b(walang ibang pagpipilian|only two|dalawa lang)\b/gi,
+                    /\b(kung hindi ako|if not me)\b/gi
+                ],
+                description: "Presents only two options when more alternatives exist",
+                example: "O ako ang iboto ninyo, o babagsak ang bansa!",
+                severity: "high"
+            },
+            {
+                type: "Whataboutism",
+                patterns: [
+                    /\b(eh ano naman|eh paano naman|pero yung)\b/gi,
+                    /\b(what about|how about|entiendes)\b/gi,
+                    /\b(sila naman|yung iba)\b/gi
+                ],
+                description: "Avoids the main issue by deflecting to unrelated matters",
+                example: "Corrupt daw ako? Eh paano naman yung kalaban?",
+                severity: "high"
+            },
+            {
+                type: "Hasty Generalization",
+                patterns: [
+                    /\b(lahat ng|all|lahat sila)\b/gi,
+                    /\b(palagi|always|lagi)\b.*\b(ganyan|ganun)\b/gi
+                ],
+                description: "Makes broad claims based on insufficient evidence",
+                example: "Lahat ng pulitiko ay corrupt!",
+                severity: "medium"
+            }
+        ];
+
+        // ==================== PHASE 3: TASK 15-18 - UI & VISUALIZATION ====================
+        
+        function analyzeSpeech() {
+            const text = document.getElementById("speechInput").value.trim();
+            if (!text) {
+                alert("Please enter a speech to analyze!");
+                return;
+            }
+
+            document.getElementById("loadingSection").style.display = "block";
+            document.getElementById("resultsSection").style.display = "none";
+
+            setTimeout(() => {
+                const analyzer = new LexicalAnalyzer();
+                
+                // Run through processing pipeline
+                const tokens = analyzer.tokenize(text);
+                const lexemes = analyzer.analyzeLexemes(tokens);
+                const phrases = analyzer.parse(lexemes);
+                const results = detectFallacies(text, tokens, lexemes, phrases);
+                
+                displayResults(results, tokens, lexemes);
+                
+                document.getElementById("loadingSection").style.display = "none";
+                document.getElementById("resultsSection").style.display = "block";
+            }, 1200);
+        }
+
+        function detectFallacies(text, tokens, lexemes, phrases) {
+            const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+            const analysis = [];
+            let allDetected = [];
+
+            sentences.forEach((sentence, i) => {
+                let found = [];
+
+                FALLACY_PATTERNS.forEach(f => {
+                    f.patterns.forEach(pattern => {
+                        const matches = sentence.match(pattern);
+                        if (matches) {
+                            matches.forEach(m => {
+                                found.push({
+                                    type: f.type,
+                                    text: m,
+                                    description: f.description,
+                                    severity: f.severity
+                                });
+                            });
+                        }
+                    });
+                });
+
+                if (found.length > 0) {
+                    analysis.push({
+                        sentenceNumber: i + 1,
+                        sentence: sentence.trim(),
+                        fallacies: found
+                    });
+                    allDetected.push(...found);
+                }
+            });
+
+            const fallacyCounts = {};
+            allDetected.forEach(f => {
+                fallacyCounts[f.type] = (fallacyCounts[f.type] || 0) + 1;
+            });
+
+            return {
+                totalFallacies: allDetected.length,
+                fallacyCounts,
+                sentenceAnalysis: analysis,
+                tokenCount: tokens.length,
+                lexemeCount: lexemes.length
+            };
+        }
+
+        function displayResults(result, tokens, lexemes) {
+            const container = document.getElementById("resultsSection");
+            let html = "";
+
+            if (result.totalFallacies === 0) {
+                html = `<div class="no-fallacy">
+                            <h3>✅ No logical fallacies detected!</h3>
+                            <p>This speech appears to be logically sound.</p>
+                        </div>`;
+                container.innerHTML = html;
+                return;
+            }
+
+            // Statistics
+            html += `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div>Total Fallacies</div>
+                        <div class="stat-number">${result.totalFallacies}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Tokens Processed</div>
+                        <div class="stat-number">${result.tokenCount}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Lexemes Analyzed</div>
+                        <div class="stat-number">${result.lexemeCount}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Sentences Scanned</div>
+                        <div class="stat-number">${result.sentenceAnalysis.length}</div>
+                    </div>
+                </div>
+            `;
+
+            // Token visualization
+            html += `
+                <div class="pipeline-visual">
+                    <h3>🔤 Token Stream (First 50 tokens)</h3>
+                    <div class="token-display">
+            `;
+            
+            tokens.slice(0, 50).forEach(token => {
+                const isFallacy = lexemes.some(l => 
+                    l.type === 'FALLACY_LEXEME' && l.value === token.value.toLowerCase()
+                );
+                html += `<span class="token ${isFallacy ? 'fallacy' : ''}">${token.value}</span>`;
+            });
+            
+            html += `</div></div>`;
+
+            // Fallacy breakdown
+            html += `<h3>📊 Fallacy Type Breakdown</h3>`;
+            for (const [type, count] of Object.entries(result.fallacyCounts)) {
+                html += `<div class="pipeline-stage">
+                    <h4>${type}</h4>
+                    <p>Detected <strong>${count}</strong> time(s)</p>
+                </div>`;
+            }
+
+            // Detailed analysis
+            html += `<h3>🔍 Detailed Sentence Analysis</h3>`;
+            result.sentenceAnalysis.forEach(item => {
+                html += `
+                    <div class="sentence-card">
+                        <div><strong>Sentence #${item.sentenceNumber}</strong></div>
+                        <div class="sentence-text">${item.sentence}</div>
+                        <br>
+                `;
+
+                item.fallacies.forEach(f => {
+                    html += `
+                        <div class="fallacy-detail">
+                            <strong>⚠️ ${f.type}</strong> [Severity: ${f.severity.toUpperCase()}]<br>
+                            ❌ Detected phrase: <em>"${f.text}"</em><br>
+                            💡 Explanation: ${f.description}
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ==================== TAB SWITCHING ====================
+        
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked nav tab
+            event.target.classList.add('active');
+            
+            // Load content for specific tabs
+            if (tabName === 'pipeline') loadPipelineContent();
+            if (tabName === 'automata') loadAutomataContent();
+            if (tabName === 'guide') loadGuideContent();
+        }
+
+        function loadPipelineContent() {
+            const content = document.getElementById('pipelineContent');
+            content.innerHTML = `
+                <div class="automata-info">
+                    <h3>Processing Pipeline Architecture</h3>
+                    <p>This fallacy detector implements a 4-stage processing pipeline based on compiler design principles:</p>
+                </div>
+
+                <div class="pipeline-stage">
+                    <h4>Stage 1: Tokenization</h4>
+                    <p>Input text is broken down into atomic units (tokens) - words, punctuation, whitespace.</p>
+                    <code>tokenize(text) → [TOKEN, TOKEN, ...]</code>
+                </div>
+
+                <div class="pipeline-stage">
+                    <h4>Stage 2: Lexical Analysis</h4>
+                    <p>Tokens are analyzed and classified. Fallacy patterns are matched using regular expressions.</p>
+                    <code>analyzeLexemes(tokens) → [LEXEME, LEXEME, ...]</code>
+                </div>
+
+                <div class="pipeline-stage">
+                    <h4>Stage 3: Parsing</h4>
+                    <p>Lexemes are grouped into meaningful phrase structures for context analysis.</p>
+                    <code>parse(lexemes) → [PHRASE, PHRASE, ...]</code>
+                </div>
+
+                <div class="pipeline-stage">
+                    <h4>Stage 4: State Machine Transition</h4>
+                    <p>PDA transitions verify syntactic patterns and accept/reject based on fallacy detection.</p>
+                    <code>transition(symbol) → NEW_STATE</code>
+                </div>
+
+                <div class="state-diagram">
+                    <h4>Data Flow</h4>
+                    <div class="state-transition">
+                        <div class="state-box">Raw Text</div>
+                        <div class="arrow">→</div>
+                        <div class="state-box">Tokens</div>
+                        <div class="arrow">→</div>
+                        <div class="state-box">Lexemes</div>
+                        <div class="arrow">→</div>
+                        <div class="state-box">Phrases</div>
+                        <div class="arrow">→</div>
+                        <div class="state-box">Analysis</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function loadAutomataContent() {
+            const content = document.getElementById('automataContent');
+            content.innerHTML = `
+                <div class="automata-info">
+                    <h3>Pushdown Automata (PDA) Specification</h3>
+                    <p><strong>M = (Q, Σ, Γ, δ, q0, Z0, F)</strong></p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>Formal Definition</h3>
+                    <p><strong>Q (States):</strong> {q0, q1, q2, q3, q4}</p>
+                    <p><strong>Σ (Input Alphabet):</strong> {word, punctuation, whitespace}</p>
+                    <p><strong>Γ (Stack Alphabet):</strong> {Z0, TOKEN, PHRASE}</p>
+                    <p><strong>q0 (Start State):</strong> q0</p>
+                    <p><strong>Z0 (Initial Stack Symbol):</strong> Z0</p>
+                    <p><strong>F (Accept States):</strong> {q3, q4}</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>Transition Function δ</h3>
+                    <div class="fallacy-card">
+                        <p><strong>δ(q

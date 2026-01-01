@@ -1,92 +1,316 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-// Fallacy Detection Logic
-const FALLACY_PATTERNS = [
-  {
-    type: "Ad Hominem (Personal Attack)",
-    patterns: [
-      /\b(bobo|tanga|abnoy|ignorante|stupid|dumb|walang pinag-aralan|walang kwenta|inutil|uneducated|corrupt naman yan)\b/gi
-    ],
-    description: "Attacking the person making the argument rather than the argument itself."
+// CFG Grammar Rules 
+const ARGUMENT_GRAMMAR = {
+  adHominem: { 
+    pattern: /(\b(?:bobo|tanga|walang pinag-aralan|ignorante|stupid)\b).+(\b(?:ka|ikaw|mo|niya|siya)\b).+(\b(?:kaya|dahil|kasi)\b).+(\b(?:mali|tama|dapat)\b)/gi, 
+    structure: "INSULT + PERSON_REF + CONNECTOR + CLAIM" 
   },
-  {
-    type: "Appeal to Emotion",
-    patterns: [
-      /\b(kawawa|maawa|isipin ang mga bata|isipin ninyo ang kinabukasan|paghihirap|masakit sa damdamin|luha ng bayan|think of the children|maghihirap)\b/gi
-    ],
-    description: "Uses emotional manipulation to persuade."
+  emotionalAppeal: { 
+    pattern: /(\b(?:kawawa|maawa|isipin ang mga)\b).+(\b(?:mga|ang)\b)\s+(\w+).+(\b(?:kaya|dahil|dapat)\b)/gi, 
+    structure: "EMOTION + TARGET + REASON" 
   },
-  {
-    type: "Bandwagon",
-    patterns: [
-      /\b(lahat naman|karamihan|uso na|sikat na|buong bayan|lahat ng botante|popular na opinyon|everyone|most people|majority|widely accepted|trending|popular belief|sumusuporta ang lahat)\b/gi
-    ],
-    description: "Arguing that something is true or good simply because many people believe it."
+  bandwagon: { 
+    pattern: /(\b(?:lahat|marami|karamihan|milyun-milyong)\b).+(\b(?:gusto|suporta|ayaw|naniniwala)\b).+(\b(?:kaya|so|dahil|dapat)\b)/gi, 
+    structure: "MAJORITY + ACTION + CONCLUSION" 
   },
-  {
-    type: "Straw Man",
-    patterns: [
-      /\b(ibig mong sabihin ay|bumagsak ang bansa|ayaw mo ng kaunlaran|galit ka lang sa gobyerno|sinasabi mo na dapat|so you're saying|gusto niya ng kaguluhan)\b/gi
-    ],
-    description: "Misrepresenting someone's argument to make it easier to attack."
+  strawman: { 
+    pattern: /(\b(?:ibig mong sabihin|gusto mo|ayaw mo|sinasabi mo)\b).+(\b(?:ay|na|ng)\b).+(\b(?:mali|tama|dapat|pabayaan|sirain)\b)/gi, 
+    structure: "MISREPRESENTATION + CONNECTOR + CLAIM" 
   },
-  {
-    type: "False Dilemma",
-    patterns: [
-      /\b(o ako o siya|wala kang ibang pagpipilian|kung hindi ka pabor, kalaban ka|dalawa lang ang pagpipilian|either|kasama ninyo|against kayo)\b/gi
-    ],
-    description: "Presenting only two options as if they're the only possibilities."
+  falseDilemma: { 
+    pattern: /(\b(?:kung hindi|either|dalawa lang)\b).+(\b(?:o|or)\b).+(\b(?:walang|nothing|wala)\b)/gi, 
+    structure: "CONDITION + OR + ALTERNATIVE" 
   },
-  {
-    type: "Whataboutism",
-    patterns: [
-      /\b(paano naman|yung ginawa nila|bakit hindi ninyo banggitin|ano naman ang sa kanila|what about|how about|eh ano naman ang ginawa|pero ano naman)\b/gi
-    ],
-    description: "Deflects criticism by pointing to another issue."
-  },
-  {
-    type: "Hasty Generalization",
-    patterns: [
-      /\b(nakasalubong ko|tatlong tao|malinaw na sang-ayon ang buong|lahat ng tao sa|everyone in)\b/gi
-    ],
-    description: "Drawing broad conclusions from insufficient evidence."
+  whataboutism: { 
+    pattern: /(\b(?:paano naman|what about|eh yung|bakit hindi)\b).+(\b(?:nila|kanila|mga|sila)\b)/gi, 
+    structure: "DEFLECTION + COUNTER_SUBJECT" 
   }
+};
+
+// PDA Stack Checker 
+function pdaAnalyze(sentence) {
+  const stack = [];
+  const tokens = sentence.toLowerCase().split(/\s+/);
+  let state = 'START';
+  let detectedStructure = [];
+  let hasPersonReference = false;
+
+  tokens.forEach(token => {
+    // Check for person reference
+    if (/\b(ka|ikaw|mo|niya|siya|kayo|nila)\b/.test(token)) {
+      hasPersonReference = true;
+    }
+    
+    // State machine transitions
+    if (state === 'START' && /\b(bobo|tanga|ignorante|stupid|walang pinag-aralan|inutil|abnoy)\b/.test(token)) {
+      stack.push('INSULT');
+      state = 'HAS_INSULT';
+      detectedStructure.push('INSULT');
+    } 
+    else if (state === 'HAS_INSULT' && /\b(kaya|dahil|kasi|because|so|therefore)\b/.test(token)) {
+      stack.push('CONNECTOR');
+      state = 'HAS_CONNECTOR';
+      detectedStructure.push('CONNECTOR');
+    } 
+    else if (state === 'HAS_CONNECTOR' && /\b(mali|tama|dapat|wrong|right|should|ayaw|gusto)\b/.test(token)) {
+      stack.push('CLAIM');
+      state = 'COMPLETE_AD_HOMINEM';
+      detectedStructure.push('CLAIM');
+    }
+  });
+
+  // Check for complete valid structure with person reference
+  if (state === 'COMPLETE_AD_HOMINEM' && stack.length === 3 && hasPersonReference) {
+    return { 
+      valid: true, 
+      fallacyType: 'Ad Hominem', 
+      structure: detectedStructure.join(' → '), 
+      confidence: 'HIGH' 
+    };
+  }
+  
+  // Check for partial matches (lower confidence)
+  if (state === 'HAS_CONNECTOR' && stack.length >= 2 && hasPersonReference) {
+    return {
+      valid: true,
+      fallacyType: 'Ad Hominem',
+      structure: detectedStructure.join(' → '),
+      confidence: 'MEDIUM'
+    };
+  }
+  
+  return { valid: false };
+}
+
+// Semantic Context
+const ARGUMENT_INDICATORS = {
+  pronouns: /\b(ka|ikaw|kayo|kita|mo|niya|siya|nila|sila|ninyo|natin|atin|namin|amin)\b/gi,
+  connectors: /\b(kaya|dahil|kasi|because|so|therefore|kaya nga|dahil sa|kung|kapag|samantalang|pero|ngunit|subalit|at|however|but)\b/gi,
+  claims: /\b(mali|tama|dapat|wrong|right|should|shouldn't|ayaw|gusto|need|kailangan|wag|huwag|maganda|pangit|masama|mabuti)\b/gi,
+  verbs: /\b(sinabi|nagsabi|claims|argue|believes|thinks|says|told|mentioned)\b/gi
+};
+
+// Fallacy patterns 
+const FALLACY_PATTERNS = [
+    {
+        type: "Ad Hominem (Personal Attack)",
+        patterns: [
+            /\b(bobo|tanga|abnoy|ignorante|stupid|dumb|walang pinag-aralan|walang kwenta|inutil|uneducated|bastos|dropout|corrupt|drug addict|taga-probinsya|mahirap|pulpol|bayaran|dilawan|DDS|walang trabaho|puro kabit|NPA supporter|komunista|trapo|elitista|walang experience|bata ka pa|lasing|showbiz|convicted|iskwater|ugly|walang asawa|adik|plastik|mukha|peke|balimbing|walang anak|atheist|chinese|LGBTQ+|matanda|divorced|puro social media|spoiled|brat|walang master's degree|bisaya|amerikano citizen|di ka naman taga dito|single)\b/gi
+        ],
+        contextRequired: true,
+        description: "Attacks the person instead of the argument"
+    },
+    {
+        type: "Appeal to Emotion",
+        patterns: [
+            /\b(kawawa|maawa|isipin ang mga|paghihirap|masakit sa damdamin|luha ng|think of the children|mawawalan ng kinabukasan|kapakanan|maawa|mahal|takot|nangungulila|umiiyak|galit|kinabukasan|kawawa|mamamamatay|mag-isa|nasasaktan|mapapahiya|namatay|iiyak|mawawala|sawa na|mamamatay|nakakaawa|ginawa ko lahat|dumudugo|legacy|konsensya|susunugin|Diyos|bayan|naaawa|nagmamakaawa|walang kinabukasan|kilabot|hindi kita bibiguin|nasasaktan|magagalit|pinaghirapan|walang makain|namatay)\b/gi
+        ],
+        contextRequired: true,
+        description: "Uses emotional manipulation to persuade"
+    },
+    {
+        type: "Bandwagon (Argumentum ad Populum)",
+        patterns: [
+            /\b(lahat naman|karamihan|uso na|sikat na|buong bayan|lahat|everyone|most|majority|popular|lahat|lahat ng|approval rating|maraming|trending|nanalo sa survey|milyun-milyong tao|pinaka-popular|number 1 sa poll|viral|sabi ng survey|maraming|buong bansa|sold out ang rally|top choice|nationwide support)\b/gi
+        ],
+        contextRequired: true,
+        description: "Claims truth based on popularity"
+    },
+    {
+        type: "Strawman",
+        patterns: [
+            /\b(ibig mong sabihin ay|bumagsak ang bansa|ayaw mo ng kaunlaran|so you're saying|galit ka lang|sinasabi mo na dapat|gusto mo|pabayaan ang|gusto mong|adik ka siguro|hatiin|pabor ka|ka pala|sumusuporta ka|bahala na pala|anti-|sirain ang|lawless society|okay lang sayo|ayaw mo|walang projects|ka no|ka ba|pabor ka|may tinatago ka ba|takot ka|government control|ayaw mo|anti-progress ka|sirain ang simbahan|may ginagamit ka|balik sa|ayaw mo ng |sayang|bmalik sa|mas importante sayo)\b/gi
+        ],
+        contextRequired: true,
+        description: "Misrepresents an opponent's argument"
+    },
+    {
+        type: "False Dilemma",
+        patterns: [
+            /\b(o ako o siya|dalawa lang ang pagpipilian|either you support this or you're against us|walang ibang pagpipilian|kung hindi ka|kasama mo kami o kalaban|either|gusto mo na ba|walang iba|kung ayaw mo eh di|walang gitna|ayaw mo)\b/gi
+        ],
+        contextRequired: true,
+        description: "Limits choices to only two options"
+    },
+    {
+        type: "Whataboutism",
+        patterns: [
+            /\b(paano naman|yung ginawa nila|what about|how about|bakit hindi ninyo banggitin|ano naman ang sa kanila|eh yung kalaban mo|ikaw din naman|eh yung mga|eh yung|eh si|ikaw naman perpekto|ikaw ba|sila ba)\b/gi
+        ],
+        contextRequired: true,
+        description: "Deflects criticism to another issue"
+    }
 ];
 
-function preprocessText(text) {
-  return text.replace(/\n+/g, ". ").trim();
+// CFG Parser
+function cfgParse(sentence) {
+  let cfgResults = [];
+  Object.entries(ARGUMENT_GRAMMAR).forEach(([key, grammar]) => {
+    if (grammar.pattern.test(sentence)) {
+      cfgResults.push({ 
+        matched: true, 
+        type: key.replace(/([A-Z])/g, ' $1').trim(), 
+        structure: grammar.structure 
+      });
+    }
+  });
+  return cfgResults.length > 0 ? cfgResults : null;
 }
 
-function splitIntoSentences(text) {
-  return text.split(/(?<=[.!?])\s+/).filter(s => s.length > 0);
+// Check if a sentence is argumentative 
+function isArgumentative(sentence) {
+    const s = sentence.toLowerCase();
+    const wordCount = s.split(/\s+/).length;
+    
+    // Too short to be argumentative
+    if (wordCount < 4) return false;
+
+    // Filter out clearly descriptive/neutral sentences
+    const descriptive = /\b(lamesa|upuan|pinto|bintana|bahay|kotse|libro|cellphone|computer|phone|laptop|tablet|keyboard|mouse|sapatos|damit|hayop|puno|bagay)\b/;
+    if (descriptive.test(s)) return false;
+    
+    // Check for greetings or casual statements
+    const casual = /^(hi|hello|kumusta|kamusta|good morning|good afternoon|salamat|thank you)\b/i;
+    if (casual.test(s)) return false;
+
+    // Count argumentative indicators
+    const hasPronoun = /\b(ikaw|ka|kayo|mo|niya|siya|nila|sila|natin|atin)\b/.test(s);
+    const hasConnector = /\b(kaya|dahil|kasi|so|therefore|pero|ngunit|subalit)\b/.test(s);
+    const hasClaim = /\b(mali|tama|dapat|ayaw|gusto|need|kailangan|wag|huwag|maganda|pangit|masama|mabuti)\b/.test(s);
+    const hasVerb = /\b(sinabi|nagsabi|sabi|claims|believes|thinks|told|mentioned)\b/.test(s);
+
+    // Need at least 2 indicators for argumentative
+    return [hasPronoun, hasConnector, hasClaim, hasVerb].filter(Boolean).length >= 2;
 }
 
+// Check if pattern match has proper context - NEW
+function hasProperContext(sentence, rule) {
+  if (!rule.contextRequired) return true;
+  
+  const s = sentence.toLowerCase();
+  
+  // For Ad Hominem: must have person reference + connector or claim
+  if (rule.type === "Ad Hominem (Personal Attack)") {
+    const hasPerson = /\b(ka|ikaw|mo|niya|siya|kayo)\b/.test(s);
+    const hasConnector = /\b(kaya|dahil|kasi|so)\b/.test(s);
+    const hasClaim = /\b(mali|tama|dapat)\b/.test(s);
+    return hasPerson && (hasConnector || hasClaim);
+  }
+  
+  // For Emotional Appeal: must have connector or directive
+  if (rule.type === "Appeal to Emotion") {
+    const hasConnector = /\b(kaya|dahil|dapat|kailangan)\b/.test(s);
+    return hasConnector && sentence.length > 30;
+  }
+  
+  // For Bandwagon: must have action verb + connector
+  if (rule.type === "Bandwagon (Argumentum ad Populum)") {
+    const hasAction = /\b(gusto|suporta|ayaw|naniniwala|bumoto)\b/.test(s);
+    const hasConnector = /\b(kaya|so|dahil|dapat)\b/.test(s);
+    return hasAction && hasConnector;
+  }
+  
+  // For Strawman: must have pronoun reference
+  if (rule.type === "Strawman") {
+    const hasPronoun = /\b(mo|ka|ikaw)\b/.test(s);
+    return hasPronoun;
+  }
+  
+  // For False Dilemma: must have "or" structure
+  if (rule.type === "False Dilemma") {
+    return /\b(o|or)\b/.test(s);
+  }
+  
+  // For Whataboutism: must have deflection structure
+  if (rule.type === "Whataboutism") {
+    const hasCounter = /\b(sila|nila|kanila|kayo)\b/.test(s);
+    return hasCounter;
+  }
+  
+  return true;
+}
+
+// Detect logical fallacies in speech - IMPROVED with all three methods
 function detectFallacies(text) {
-  const cleanText = preprocessText(text);
-  const sentences = splitIntoSentences(cleanText);
+  const sentences = text
+    .replace(/\n+/g, ". ")
+    .trim()
+    .split(/(?<=[.!?])\s+/)
+    .filter(Boolean);
 
-  let detectedFallacies = [];
+  let detected = [];
+  const seen = new Set(); // track unique phrase + sentence
 
-  sentences.forEach((sentence) => {
+  sentences.forEach(sentence => {
+    const isArg = isArgumentative(sentence);
+    
+    if (!isArg) return; // Skip non-argumentative sentences
+
+    // METHOD 1: PDA Analysis 
+    const pdaResult = pdaAnalyze(sentence);
+    if (pdaResult.valid) {
+      const key = `pda::${sentence.toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        detected.push({
+          name: pdaResult.fallacyType,
+          phrase: pdaResult.structure,
+          explanation: "Detected via PDA stack analysis",
+          sentence,
+          confidence: pdaResult.confidence,
+          method: 'PDA'
+        });
+      }
+    }
+
+    // METHOD 2: CFG Parser
+    const cfgResult = cfgParse(sentence);
+    if (cfgResult) {
+      cfgResult.forEach(result => {
+        const key = `cfg::${result.type}::${sentence.toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          detected.push({
+            name: result.type,
+            phrase: result.structure,
+            explanation: `Matched grammar pattern: ${result.structure}`,
+            sentence,
+            confidence: 'HIGH',
+            method: 'CFG'
+          });
+        }
+      });
+    }
+
+    // METHOD 3: Pattern Matching with Context
     FALLACY_PATTERNS.forEach(rule => {
       rule.patterns.forEach(pattern => {
         const matches = sentence.match(pattern);
-        if (matches) {
+
+        if (matches && hasProperContext(sentence, rule)) {
           matches.forEach(match => {
-            detectedFallacies.push({
-              name: rule.type,
-              phrase: match,
-              explanation: rule.description,
-              sentence: sentence
-            });
+            const key = `${match.toLowerCase()}||${sentence.toLowerCase()}`;
+
+            if (!seen.has(key)) {
+              seen.add(key);
+              detected.push({
+                name: rule.type,
+                phrase: match,
+                explanation: rule.description,
+                sentence,
+                confidence: 'MEDIUM',
+                method: 'PATTERN'
+              });
+            }
           });
         }
       });
     });
   });
 
-  return detectedFallacies;
+  return detected;
 }
 
 const CharotChecker = () => {
@@ -119,14 +343,15 @@ const CharotChecker = () => {
     count: getFallacyCount(name)
   }));
 
-  const handleAnalyze = () => {
-    if (text.trim()) {
-      const results = detectFallacies(text);
-      setDetectedFallacies(results);
-      setAnalyzed(true);
-      setExpandedFallacies({}); // Reset expanded state
-    }
-  };
+ const handleAnalyze = () => {
+  if (text.trim()) {
+    const results = detectFallacies(text);
+    setDetectedFallacies(results);
+    setAnalyzed(true);
+    setExpandedFallacies({}); // reset expanded panels
+  }
+};
+
 
   const PieChart = ({ data }) => {
     const [hoveredIndex, setHoveredIndex] = useState(null);

@@ -1,20 +1,70 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  CheckCircle,
+  Loader2
+} from 'lucide-react';
+
+const FALLACY_COLORS = {
+  'Ad Hominem': 'bg-red-200 text-red-900',
+  'Straw Man': 'bg-orange-200 text-orange-900',
+  'False Dilemma': 'bg-amber-200 text-amber-900',
+  'Appeal to Emotion': 'bg-pink-200 text-pink-900',
+  'Red Herring': 'bg-purple-200 text-purple-900',
+  'Bandwagon': 'bg-indigo-200 text-indigo-900',
+  'Hasty Generalization': 'bg-yellow-200 text-yellow-900'
+};
+
+const FALLACY_ACCENT_COLORS = {
+  'Ad Hominem': '#ef4444',
+  'Straw Man': '#f97316',
+  'False Dilemma': '#f59e0b',
+  'Appeal to Emotion': '#ec4899',
+  'Red Herring': '#a855f7',
+  'Bandwagon': '#6366f1',
+  'Hasty Generalization': '#eab308'
+};
+
+/*
+const FALLACY_PIE_COLORS = {
+  'Ad Hominem': '#fca5a5',
+  'Straw Man': '#fdba74',
+  'False Dilemma': '#fcd34d',
+  'Appeal to Emotion': '#f9a8d4',
+  'Red Herring': '#d8b4fe',
+  'Bandwagon': '#a5b4fc',
+  'Hasty Generalization': '#fde047'
+}; */
 
 const CharotChecker = () => {
+  const resultsRef = useRef(null);
+
   // Load Google Fonts
-  React.useEffect(() => {
+  useEffect(() => {
     const link = document.createElement('link');
     link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;800&family=Inter:wght@300;400;500&display=swap';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
+    
+    // Add SF Pro font fallback
+    const style = document.createElement('style');
+    style.textContent = `
+      @font-face {
+        font-family: 'SF Pro Display';
+        src: local('SF Pro Display'), local('-apple-system'), local('BlinkMacSystemFont');
+        font-weight: 100 900;
+      }
+    `;
+    document.head.appendChild(style);
   }, []);
 
   const [text, setText] = useState('');
   const [analyzed, setAnalyzed] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [expandedFallacies, setExpandedFallacies] = useState({});
-  const [openInstruction, setOpenInstruction] = useState(null);
 
   // Simulated detected fallacies - replace with actual detection logic
   const detectedFallacies = [
@@ -35,10 +85,6 @@ const CharotChecker = () => {
     }
   ];
 
-  // For testing different scenarios, you can modify this:
-  // const detectedFallacies = []; // No fallacies
-  // const detectedFallacies = [{ name: "Ad Hominem", phrase: "yuck", explanation: "..." }]; // One fallacy
-
   const toggleFallacy = (index) => {
     setExpandedFallacies(prev => ({
       ...prev,
@@ -56,9 +102,39 @@ const CharotChecker = () => {
   }));
 
   const handleAnalyze = () => {
-    if (text.trim()) {
+    if (!text.trim()) return;
+
+    setLoading(true);
+    setAnalyzed(false);
+
+    // Simulate API call
+    setTimeout(() => {
+      setLoading(false);
       setAnalyzed(true);
-    }
+
+      // Scroll to results after they appear
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 150);
+    }, 1200);
+  };
+
+  /* INLINE HIGHLIGHT RENDERER */
+  const getHighlightedText = () => {
+    let highlighted = text;
+
+    detectedFallacies.forEach((fallacy) => {
+      const regex = new RegExp(`(${fallacy.phrase})`, 'gi');
+      highlighted = highlighted.replace(
+        regex,
+        `<mark class="px-1 rounded ${FALLACY_COLORS[fallacy.name]} hover:brightness-110 transition">$1</mark>`
+      );
+    });
+
+    return highlighted.replace(/\n/g, '<br />');
   };
 
   // Pie chart component
@@ -67,7 +143,7 @@ const CharotChecker = () => {
     const total = data.reduce((sum, item) => sum + item.count, 0);
     let currentAngle = 0;
     
-    const colors = ['#5f0f40', '#9a1750', '#d62246', '#e63946', '#f77f00'];
+    const colors = ['#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'];
     
     return (
       <div className="flex flex-col items-center gap-6">
@@ -80,7 +156,6 @@ const CharotChecker = () => {
                 const startAngle = currentAngle;
                 currentAngle += angle;
                 
-                // Calculate path for pie slice
                 const radius = 100;
                 const startX = radius * Math.cos((Math.PI * startAngle) / 180);
                 const startY = radius * Math.sin((Math.PI * startAngle) / 180);
@@ -115,7 +190,6 @@ const CharotChecker = () => {
             </g>
           </svg>
           
-          {/* Tooltip */}
           {hoveredIndex !== null && (
             <div 
               className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200 pointer-events-none"
@@ -137,7 +211,6 @@ const CharotChecker = () => {
           )}
         </div>
         
-        {/* Legend - without counts */}
         <div className="flex flex-wrap justify-center gap-4">
           {data.map((item, index) => (
             <div key={index} className="flex items-center gap-2">
@@ -156,11 +229,10 @@ const CharotChecker = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden">
             <img 
               src="/fallacy-logo.png" 
@@ -168,126 +240,180 @@ const CharotChecker = () => {
               className="w-full h-full object-contain"
             />
           </div>
-          <div>
-            <h1 className="text-gray-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '48px', lineHeight: '1.0' }}>Charot Checker</h1>
-            <p className="text-gray-600" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 300, fontSize: '18px', fontStyle: 'italic' }}>A Filipino Political Speech Fallacy Detector</p>
-          </div>
+          <div className="text-center">
+            <h1 className="text-gray-900" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif', fontWeight: 800, fontSize: '48px', lineHeight: '1.2', color: '#261815' }}>Charot Checker</h1>
+            <p className="text-gray-600 mt-1" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 300, fontSize: '18px', fontStyle: 'italic', color: '#301E1B' }}>A Filipino Political Speech Fallacy Detector</p>
           </div>
         </div>
 
         {/* Description */}
-        <div className="mb-8">
-          <p className="text-gray-800 leading-relaxed" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 300, fontSize: '16px', lineHeight: '1.6' }}>
+        <div className="mb-8 text-center max-w-6xl mx-auto">
+          <p className="text-gray-800" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif', fontWeight: 425, fontSize: '16px', lineHeight: '1.2', color: '#261815' }}>
             <span className="font-bold">Charot Checker</span> is your quick guide to spotting falsehoods and twisted logic in Filipino politics, because <span className="font-bold italic">knowing the truth matters</span>.
           </p>
         </div>
 
-        {/* Input Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-gray-900 mb-4" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 500, fontSize: '18px' }}>Paste text here to spot fallacies</h2>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Paste speech here"
-            className="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-gray-400 text-gray-800"
-            style={{ fontFamily: 'Inter, sans-serif', fontWeight: 300, fontSize: '14px', fontStyle: text ? 'normal' : 'italic', lineHeight: '1.5' }}
-          />
-        </div>
+        {/* Main Content - Input with Inline Highlighting */}
+        <div className={`transition-all duration-700 ease-in-out mb-8`}>
+          <div className={`bg-white rounded-2xl shadow-sm p-6 transition-all duration-700 w-full`}>
+            <h2 className="text-gray-900 mb-4" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 500, fontSize: '18px', color: '#261815' }}>Paste text here to spot fallacies</h2>
+            
+            <div className="relative">
+              {/* Highlight layer */}
+              <div
+                className="absolute inset-0 p-4 whitespace-pre-wrap break-words pointer-events-none overflow-hidden rounded-xl"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                  color: 'transparent'
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: analyzed ? getHighlightedText() : text.replace(/\n/g, '<br />')
+                }}
+              />
 
-        {/* Analyze Button */}
-        <div className="flex justify-center mb-8">
-          <button
-            onClick={handleAnalyze}
-            className="px-12 py-4 rounded-full shadow-md transition-all duration-200 bg-black hover:bg-gray-800 text-white"
-            style={{ 
-              fontFamily: 'Poppins, sans-serif', 
-              fontWeight: 500, 
-              fontSize: '18px'
-            }}
-          >
-            Analyze
-          </button>
+              {/* Textarea */}
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Paste speech here..."
+                className="relative w-full min-h-[380px] p-4 border border-gray-300 rounded-xl resize-none bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-700/30 text-gray-800 transition-all duration-200"
+                style={{ 
+                  fontFamily: 'Inter, sans-serif', 
+                  fontWeight: 300, 
+                  fontSize: '14px', 
+                  fontStyle: text ? 'normal' : 'italic', 
+                  lineHeight: '1.5',
+                  color: analyzed ? 'transparent' : '#1f2937'
+                }}
+              />
+            </div>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={loading}
+              className="mt-4 w-full flex items-center justify-center gap-2 bg-blue-900 text-white py-3 rounded-xl font-medium shadow-sm hover:bg-blue-800 hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+              style={{ fontFamily: 'Poppins, sans-serif', fontSize: '18px' }}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  Analyzing…
+                </>
+              ) : (
+                'Analyze Text'
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Results Section */}
         {analyzed && (
-          <>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-              <h2 
-                className="text-center mb-4" 
-                style={{ 
-                  fontFamily: 'Poppins, sans-serif', 
-                  fontWeight: 600, 
-                  fontSize: '24px',
-                  color: detectedFallacies.length === 0 ? '#0f4c5c' : '#5f0f40'
-                }}
-              >
-                {detectedFallacies.length === 0 
-                  ? 'NO FALLACY FOUND!' 
-                  : detectedFallacies.length === 1 
-                  ? 'FALLACY FOUND!' 
-                  : 'FALLACIES FOUND!'}
-              </h2>
-              
+          <div ref={resultsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 animate-fade-in">
+            {/* Left Column - Fallacies List */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
               {detectedFallacies.length === 0 ? (
-                <p className="text-gray-700 text-center" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px' }}>
-                  This speech is free of fallacies.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {detectedFallacies.map((fallacy, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => toggleFallacy(index)}
-                        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
-                      >
-                        <h3 className="text-gray-900 flex items-center gap-2" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '18px' }}>
-                          <span className="text-sm transition-transform" style={{ transform: expandedFallacies[index] ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
-                          {fallacy.name}
-                        </h3>
-                      </button>
-                      
-                      {expandedFallacies[index] && (
-                        <div className="px-4 pb-4 border-t border-gray-200 pt-3 space-y-2">
-                          <p className="text-gray-700" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '15px', lineHeight: '1.6' }}>
-                            <span className="font-semibold">Found Phrase:</span> "{fallacy.phrase}"
-                          </p>
-                          <p className="text-gray-700" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '15px', lineHeight: '1.6' }}>
-                            <span className="font-semibold">Explanation:</span> {fallacy.explanation}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="flex items-center gap-3 p-4 text-center bg-green-50 border-l-4 border-green-700 rounded-xl">
+                  <CheckCircle className="text-green-700 flex-shrink-0" size={24} />
+                  <div>
+                    <h2 className="font-semibold text-green-800" style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px'}}>
+                      NO FALLACY FOUND!
+                    </h2>
+                    <p className="text-green-700 text-sm mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      This speech is free of logical fallacies.
+                    </p>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <AlertTriangle className="text-red-700" size={24} />
+                    <h2 
+                      className="font-semibold text-red-700" 
+                      style={{ fontFamily: 'Poppins, sans-serif', fontSize: '24px' }}
+                    >
+                      {detectedFallacies.length === 1 ? 'FALLACY FOUND!' : 'FALLACIES FOUND!'}
+                    </h2>
+                  </div>
+
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {detectedFallacies.map((fallacy, index) => (
+                      <div 
+                        key={index} 
+                        className={`rounded-xl overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${FALLACY_COLORS[fallacy.name]} bg-opacity-30`}
+                        style={{ borderLeft: `4px solid ${FALLACY_ACCENT_COLORS[fallacy.name]}` }}
+                      >
+                        <button
+                          onClick={() => toggleFallacy(index)}
+                          className="w-full flex items-center justify-between p-4 text-left font-semibold"
+                          style={{ fontFamily: 'Poppins, sans-serif', fontSize: '17px' }}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="text-sm transition-transform" style={{ transform: expandedFallacies[index] ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                            {fallacy.name}
+                          </span>
+                        </button>
+                        
+                        {expandedFallacies[index] && (
+                          <div className="px-4 pb-4 space-y-2">
+                            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', lineHeight: '1.6' }}>
+                              <span className="font-semibold">Found Phrase:</span> "{fallacy.phrase}"
+                            </p>
+                            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', lineHeight: '1.6' }}>
+                              <span className="font-semibold">Explanation:</span> {fallacy.explanation}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
-            {/* Summary Section */}
-            {detectedFallacies.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-                <h2 className="text-center mb-6" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '24px', color: '#1f2937' }}>SUMMARY</h2>
-                
-                <div className="grid grid-cols-3 gap-4 mb-8">
-                  {uniqueFallacies.map((fallacy, index) => (
-                    <div key={index} className="text-center">
-                      <h3 className="mb-2" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '16px', color: '#5f0f40' }}>{fallacy.name}</h3>
-                      <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#5f0f40' }}>{fallacy.count} instance{fallacy.count !== 1 ? 's' : ''} detected</p>
-                    </div>
-                  ))}
+            {/* Right Column - Summary */}
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="text-center mb-6" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '24px', color: '#091942' }}>SUMMARY</h2>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="rounded-xl border border-gray-200 p-4 transition hover:shadow-sm">
+                  <p className="text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>Fallacies Found</p>
+                  <p className="text-3xl font-bold text-gray-800" style={{ fontFamily: 'Poppins, sans-serif'}}>
+                    {detectedFallacies.length}
+                  </p>
                 </div>
 
-                {/* Pie Chart */}
-                <div className="flex justify-center">
-                  <PieChart data={uniqueFallacies} />
+                <div className="rounded-xl border border-gray-200 p-4 transition hover:shadow-sm">
+                  <p className="text-sm text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>Text Length</p>
+                  <p className="text-3xl font-bold text-gray-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                    {text.length}
+                  </p>
                 </div>
               </div>
-            )}
-          </>
+
+              {detectedFallacies.length > 0 && (
+                <>
+                  <div className="grid grid-cols-3 gap-4 mb-8">
+                    {uniqueFallacies.map((fallacy, index) => (
+                      <div key={index} className="text-center">
+                        <h3 className="mb-2" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '15px', color: '#1e40af' }}>{fallacy.name}</h3>
+                        <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '13px', color: '#3b82f6' }}>{fallacy.count} instance{fallacy.count !== 1 ? 's' : ''} detected</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-center">
+                    <PieChart data={uniqueFallacies} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* Instructions Section*/}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Instructions Section */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
             onClick={() => setShowInstructions(!showInstructions)}
             className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
@@ -308,7 +434,7 @@ const CharotChecker = () => {
               </div>
 
               <div>
-                <h3 className="text-gray-900 mb-2" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '20px' }}>How to Use</h3>
+                <h3 className="text-gray-900 mb-3" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '20px' }}>How to Use</h3>
                 <ol className="space-y-2 text-gray-700" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '15px', lineHeight: '1.6' }}>
                   <li>1. Copy the speech text you want to analyze (from transcripts, news articles, or social media posts)</li>
                   <li>2. Paste it into the text box on the tool</li>
@@ -380,9 +506,37 @@ const CharotChecker = () => {
             </div>
           )}
         </div>
-
-
       </div>
+
+      {/* Animations */}
+      <style>
+        {`
+          .animate-fade-in {
+            animation: fadeIn 0.4s ease-out;
+          }
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(6px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .animate-spin {
+            animation: spin 1s linear infinite;
+          }
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };

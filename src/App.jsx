@@ -39,19 +39,19 @@ const FALLACY_PIE_COLORS = {
 }; */
 
 const TOKEN_CATEGORIES = {
-  INSULT: /\b(bobo|tanga|engot|ignorante|stupid|dilawan|dds|trapo|puluhan|korap|gago|ulol|pinklawan|kakampink|apologist|magnanakaw|sinungaling|lutang|pula|pink|corrupt|pansarili|sakim|kurakot|walang kwenta|walang pinag-aralan|inutil|abnoy|bastos|dropout|drug addict|addict|taga-probinsya|mahirap|pulpol|bayaran|NPA supporter|komunista|lasing|showbiz|convicted|iskwater|ugly|walang asawa|adik|plastik|peke|balimbing|walang anak|atheist|Chinese|LGBTQ\+|Matanda|divorced|spoiled brat|bisaya|amerikano|single|elitista|walang experience|puro kabit|walang trabaho|peke diploma|adik sa power|iskwater mentality|amerikano citizen|puro social media)\b/i,
+  INSULT: /\b(bobo|tanga|engot|ignorante|stupid|dilawan|dds|trapo|puluhan|korap|gago|ulol|pinklawan|kakampink|apologist|magnanakaw|sinungaling|lutang|pula|pink|corrupt|pansarili|sakim|kurakot|walang kwenta|walang pinag-aralan|inutil|abnoy|bastos|dropout|drug addict|addict|taga-probinsya|mahirap|pulpol|bayaran|NPA supporter|komunista|lasing|showbiz|convicted|iskwater|ugly|walang asawa|adik|plastik|peke|balimbing|walang anak|atheist|Chinese|LGBTQ\+|Matanda|divorced|spoiled brat|bisaya|amerikano|single|elitista|walang experience|puro kabit|walang trabaho|peke diploma|adik sa power|iskwater mentality|amerikano citizen|puro social media|shoot na shoot)\b/i,
   PERSON_REF: /\b(senador|governor|presidente|mayor|kandidato|politiko|vp|kalaban|opponent|rival|cruz|opposition|niya|siya|yan|namin|ka|sa amin|bata)\b/i,
   CONNECTOR: /\b(kaya|dahil|kasi|therefore|sapagkat|pero|at|naman|dito|rin|din|lang)\b/i,
-  CLAIM: /\b(mali|tama|dapat|wrong|should|suporta|boto|batas|plano|programa|aksyon|plataporma|huwag|pakinggan|reform|progress|economic|ginawa|gumawa|iniisip)\b/i,
-  EMOTION: /\b(kawawa|maawa|nakakaawa|awa|luha|kinabukasan|kahirapan|gutom|isipin|maghihirap|hirap|sakit|lungkot|masakit|kapakanan|takot|nangungulila|isipin ang mga bata|masakit sa damdamin|luha ng bayan|kapakanan ng pamilya|mapapahiya tayo|hindi kita bibiguin|magtiwala kayo|sawa na ako)\b/i,
+  CLAIM: /\b(mali|tama|dapat|wrong|should|suporta|boto|batas|plano|programa|aksyon|plataporma|huwag|pakinggan|reform|progress|economic|ginawa|gumawa|iniisip|wala|kulang)\b/i,
+  EMOTION: /\b(kawawa|maawa|nakakaawa|awa|luha|kinabukasan|kahirapan|gutom|isipin|maghihirap|hirap|sakit|lungkot|masakit|kapakanan|takot|nangungulila|isipin ang mga bata|masakit sa damdamin|luha ng bayan|kapakanan ng pamilya|mapapahiya tayo|hindi kita bibiguin|magtiwala kayo|sawa na ako|paghihirap|galit|mamamatay|umiiyak|nasasaktan|mapapahiya|sawa|umiyak|mag-isa|namatay|iiyak|mawawala|dumudugo|iisipin|konsensya|Diyos|naaawa|nagmamakaawa|kilabot|kultura|magagalit|pinaghirapan|para sa inyo|walang makain|OFW|deserve|magsama-sama|magkaisa)\b/i,
   TARGET: /\b(mga tao|komunidad|sambayanan|mamamayan|bayan|ninyo|natin|inyong|anak|pamilya|mahihirap|amin|bata|nila|Pilipinas|OFW)\b/i,
-  MAJORITY: /\b(lahat|marami|karamihan|milyon|buong mundo|sambayanan|uniteam|solid|taong bayan|buong|sangkatauhan|everyone|rehiyon|probinsya|bansa|umiiyak|nasasaktan|mapapahiya|sawa|uso na|sikat na|buong bayan|popular na opinyon|31 million|nanalo sa survey|lahat ng surveys)\b/i,
-  ACTION: /\b(bumoto|iboto|suportahan|samahan|sumunod|maniwala|pumanig|sumusuporta|makisama)\b/i,
+  MAJORITY: /\b(lahat naman|lahat ng botante|lahat ng bansa|Lahat ng senador| marami|karamihan |milyon|buong mundo|sambayanan|uniteam|solid|taong bayan|buong|sangkatauhan|everyone|rehiyon|probinsya|bansa|umiiyak|nasasaktan|mapapahiya|sawa|uso na ito|sikat na|buong bayan|popular na opinyon|31 million Filipinos|80% approval rating|Majority ng Pilipino|96% approval rating|16M |sabi ng survey|Lahat ng business sector|Top choice| Nationwide support | Majority ng professionals |Pinag-uusapan ng buong bansa|Lahat ng DDS |Billion pesos|Majority ng masa|Lahat ng news outlets|Pinaka-popular|Milyun-milyong tao|Majority ng Congress| nanalo sa survey|lahat ng surveys)\b/i,
+  ACTION: /\b(bumoto|iboto|suportahan|samahan|sumunod|maniwala|maniniwala|pumanig|sumusuporta|makisama)\b/i,
   SMALL_SAMPLE: /\b(konti|ilan|tatlong|dalawang|isang tao|nakasalubong|iilan|tatlo|dalawa|isa|tatlong beses|nakita ko|isang pulitiko)\b/i,
   MISREP: /\b(ibig sabihin|gusto lang|balak lang|sinasabi niya|gusto niya|gusto ng|means|parang|ibig mong sabihin ay|ayaw mo ng|galit ka lang|sinasabi mo na dapat|pabor ka sa|okay lang sayo|mas importante sayo)\b/i,
-  DILEMMA: /\b(pumili|dalawa lang|pagpipilian|alinman|kasama|either|choice)\b/i,
+  DILEMMA: /\b(pumili|dalawa lang|pagpipilian|alinman|kasama|either|choice|kung|piliin|choices|walang gitna|walang iba)\b/i,
   OR: /\b(o|or|laban sa|versus|vs|kaya naman|o kaya)\b/i,
-  DEFLECT: /\b(pero ano|ano naman|paano naman|eh yung|nasaan ang|kumusta naman|eh ano|bakit hindi ninyo banggitin|ano naman ang sa kanila|bakit ako ang pinupuna|ikaw din naman ganyan|paano yung mga)\b/i,
+  DEFLECT: /\b(pero ano|ano naman|paano naman yung|eh yung|nasaan ang|kumusta naman|eh ano|bakit hindi ninyo banggitin|ikaw ba bumoto ng tama|yung ginawa nila|lahat naman ng politiko ganyan|ikaw naman perpekto|ikaw ba walang pagkakamali|eh si|eh yung|yung mga|pag-usapan din yung| mas malala yung nakaraang senador|ikaw ba sumunod sa| yung BBL controversyano| yung ginawa nila |naman ang sa kanila|bakit ako ang pinupuna|eh yung kalaban mo| Ikaw ba nag-donate|ikaw din naman ganyan|paano yung mga|paano naman ang)\b/i,
   COUNTER_SUBJ: /\b(noon|nakaraan|dati|ibang tao|sila rin|panahon ni|administrasyon|nakaraang|previous|before)\b/i,
   UNIVERSAL: /\b(lahat|buong|bawat|everybody|always|palagi|ever|buong partido|lahat ng taga)\b/i,
   DIRECTIVE: /\b(dapat|kailangan|must|should|nararapat|obligado)\b/i,
@@ -63,12 +63,16 @@ const TOKEN_CATEGORIES = {
 const CNF_GRAMMARS = {
   adHominem: {
     S: [
-      ['Attk', 'CLAIM'],    // [INSULT + PERSON] -> then CLAIM
+      ['Attk', 'CLAIM'],
+      ['CLAIM', 'Attk'],
+      ['Attk', 'ACTION'], 
       ['PERSON_REF', 'INSULT'], 
       ['INSULT', 'PERSON_REF'],
       ['INSULT', 'CLAIM'],
-      ['INSULT'] ,
-      ['PERSON_REF','CLAIM']
+      ['INSULT', 'ACTION'],
+      ['INSULT'],
+      ['PERSON_REF','CLAIM'],
+      ['INSULT', 'CONNECTOR']
     ],
     Attk: [
       ['INSULT', 'PERSON_REF'],
@@ -112,12 +116,15 @@ const CNF_GRAMMARS = {
       ['DILEMMA', 'OR'],
       ['OR', 'OPPOSITE'],
       ['DILEMMA','OPPOSITE'],
-      ['DILEMMA']          
+      ['DILEMMA'],
+      ['da', 'OR']          
     ],
     DilO: [['DILEMMA', 'OR']],
+    da: [['DILEMMA', 'ACTION']],
     DILEMMA: [['DILEMMA']],
     OR: [['OR']],
-    OPPOSITE: [['OPPOSITE']]
+    OPPOSITE: [['OPPOSITE']],
+    ACTION: [['ACTION']]
   },
 
   whataboutism: {
@@ -629,7 +636,7 @@ const CharotChecker = () => {
           </div>
           <div className="text-center">
             <h1 className="text-gray-900" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif', fontWeight: 800, fontSize: '48px', lineHeight: '1.2', color: '#261815' }}>Charot Checker</h1>
-            <p className="text-gray-600 mt-1" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 300, fontSize: '18px', fontStyle: 'italic', color: '#301E1B' }}>A Filipino Political Speech Fallacy Detector</p>
+            <p className="text-gray-600 mt-1" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 300, fontSize: '18px', fontStyle: 'italic', color: '#301E1B' }}>A Filipino Political Discourse Fallacy Detector</p>
           </div>
         </div>
 
@@ -816,7 +823,7 @@ const CharotChecker = () => {
               <div>
                 <h3 className="text-gray-900 mb-3" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '20px' }}>What This Tool Does</h3>
                 <p className="text-gray-700 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '15px', lineHeight: '1.6' }}>
-                  The Fallacy Detector helps you identify logical fallacies or errors in reasoning that weaken arguments in Filipino political speeches. Whether you're a student, journalist, voter, or concerned citizen, this tool empowers you to critically examine political rhetoric and make more informed judgments about the arguments presented to you.
+                  The Fallacy Detector helps you identify logical fallacies or errors in reasoning that weaken arguments in Filipino political discourse. Whether you're a student, journalist, voter, or concerned citizen, this tool empowers you to critically examine political rhetoric and make more informed judgments about the arguments presented to you.
                 </p>
               </div>
 

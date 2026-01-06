@@ -38,6 +38,406 @@ const FALLACY_PIE_COLORS = {
   'Hasty Generalization': '#fde047'
 }; */
 
+const TOKEN_CATEGORIES = {
+  INSULT: /\b(bobo|tanga|engot|ignorante|stupid|dilawan|dds|trapo|puluhan|korap|gago|ulol|pinklawan|kakampink|apologist|magnanakaw|sinungaling|lutang|pula|pink|corrupt|pansarili|sakim|kurakot|walang kwenta|walang pinag-aralan|inutil|abnoy|bastos|dropout|drug addict|addict|taga-probinsya|mahirap|pulpol|bayaran|NPA supporter|komunista|lasing|showbiz|convicted|iskwater|ugly|walang asawa|adik|plastik|peke|balimbing|walang anak|atheist|Chinese|LGBTQ\+|Matanda|divorced|spoiled brat|bisaya|amerikano|single|elitista|walang experience|puro kabit|walang trabaho|peke diploma|adik sa power|iskwater mentality|amerikano citizen|puro social media)\b/i,
+  PERSON_REF: /\b(senador|governor|presidente|mayor|kandidato|politiko|vp|kalaban|opponent|rival|cruz|opposition|niya|siya|yan|namin|ka|sa amin|bata)\b/i,
+  CONNECTOR: /\b(kaya|dahil|kasi|therefore|sapagkat|pero|at|naman|dito|rin|din|lang)\b/i,
+  CLAIM: /\b(mali|tama|dapat|wrong|should|suporta|boto|batas|plano|programa|aksyon|plataporma|huwag|pakinggan|reform|progress|economic|ginawa|gumawa|iniisip)\b/i,
+  EMOTION: /\b(kawawa|maawa|nakakaawa|awa|luha|kinabukasan|kahirapan|gutom|isipin|maghihirap|hirap|sakit|lungkot|masakit|kapakanan|takot|nangungulila|isipin ang mga bata|masakit sa damdamin|luha ng bayan|kapakanan ng pamilya|mapapahiya tayo|hindi kita bibiguin|magtiwala kayo|sawa na ako)\b/i,
+  TARGET: /\b(mga tao|komunidad|sambayanan|mamamayan|bayan|ninyo|natin|inyong|anak|pamilya|mahihirap|amin|bata|nila|Pilipinas|OFW)\b/i,
+  MAJORITY: /\b(lahat|marami|karamihan|milyon|buong mundo|sambayanan|uniteam|solid|taong bayan|buong|sangkatauhan|everyone|rehiyon|probinsya|bansa|umiiyak|nasasaktan|mapapahiya|sawa|uso na|sikat na|buong bayan|popular na opinyon|31 million|nanalo sa survey|lahat ng surveys)\b/i,
+  ACTION: /\b(bumoto|iboto|suportahan|samahan|sumunod|maniwala|pumanig|sumusuporta|makisama)\b/i,
+  SMALL_SAMPLE: /\b(konti|ilan|tatlong|dalawang|isang tao|nakasalubong|iilan|tatlo|dalawa|isa|tatlong beses|nakita ko|isang pulitiko)\b/i,
+  MISREP: /\b(ibig sabihin|gusto lang|balak lang|sinasabi niya|gusto niya|gusto ng|means|parang|ibig mong sabihin ay|ayaw mo ng|galit ka lang|sinasabi mo na dapat|pabor ka sa|okay lang sayo|mas importante sayo)\b/i,
+  DILEMMA: /\b(pumili|dalawa lang|pagpipilian|alinman|kasama|either|choice)\b/i,
+  OR: /\b(o|or|laban sa|versus|vs|kaya naman|o kaya)\b/i,
+  DEFLECT: /\b(pero ano|ano naman|paano naman|eh yung|nasaan ang|kumusta naman|eh ano|bakit hindi ninyo banggitin|ano naman ang sa kanila|bakit ako ang pinupuna|ikaw din naman ganyan|paano yung mga)\b/i,
+  COUNTER_SUBJ: /\b(noon|nakaraan|dati|ibang tao|sila rin|panahon ni|administrasyon|nakaraang|previous|before)\b/i,
+  UNIVERSAL: /\b(lahat|buong|bawat|everybody|always|palagi|ever|buong partido|lahat ng taga)\b/i,
+  DIRECTIVE: /\b(dapat|kailangan|must|should|nararapat|obligado)\b/i,
+  INFER: /\b(kaya|dahil dito|ibig sabihin|automatic|asahan|sigurado|halata naman)\b/i,
+  DISTORTION: /\b(kaguluhan|walang batas|chaos|krimen|gulo|kalye|disorder)\b/i,
+  OPPOSITE: /\b(against|laban|kontra|ayaw)\b/i
+};
+
+const CNF_GRAMMARS = {
+  adHominem: {
+    S: [
+      ['Attk', 'CLAIM'],    // [INSULT + PERSON] -> then CLAIM
+      ['PERSON_REF', 'INSULT'], 
+      ['INSULT', 'PERSON_REF'],
+      ['INSULT', 'CLAIM'],
+      ['INSULT'] ,
+      ['PERSON_REF','CLAIM']
+    ],
+    Attk: [
+      ['INSULT', 'PERSON_REF'],
+      ['PERSON_REF', 'INSULT']
+    ],
+    INSULT: [['INSULT']],
+    PERSON_REF: [['PERSON_REF']],
+    CLAIM: [['CLAIM']]
+  },
+
+  appealToEmotion: {
+    S: [
+      ['EmoT', 'ACTION'],   // [EMOTION + TARGET] -> then ACTION
+      ['EMOTION', 'TARGET'],
+      ['EMOTION', 'ACTION'],
+      ['EMOTION']           
+    ],
+    EmoT: [['EMOTION', 'TARGET']],
+    EMOTION: [['EMOTION']],
+    TARGET: [['TARGET']],
+    ACTION: [['ACTION']]
+  },
+
+  strawman: {
+    S: [
+      ['MisD', 'DISTORTION'], // [MISREP + PERSON] -> then DISTORTION
+      ['MISREP', 'DISTORTION'],
+      ['MISREP', 'CLAIM'],
+      ['MISREP']              
+    ],
+    MisD: [['MISREP', 'PERSON_REF']],
+    MISREP: [['MISREP']],
+    DISTORTION: [['DISTORTION']],
+    PERSON_REF: [['PERSON_REF']],
+    CLAIM: [['CLAIM']]
+  },
+
+  falseDilemma: {
+    S: [
+      ['DilO', 'OPPOSITE'], // [DILEMMA + OR] -> then OPPOSITE
+      ['DILEMMA', 'OR'],
+      ['OR', 'OPPOSITE'],
+      ['DILEMMA','OPPOSITE'],
+      ['DILEMMA']          
+    ],
+    DilO: [['DILEMMA', 'OR']],
+    DILEMMA: [['DILEMMA']],
+    OR: [['OR']],
+    OPPOSITE: [['OPPOSITE']]
+  },
+
+  whataboutism: {
+    S: [
+      ['DefC', 'CLAIM'],     // [DEFLECT + COUNTER] -> then CLAIM
+      ['DEFLECT', 'COUNTER_SUBJ'],
+      ['DEFLECT', 'CLAIM'],
+      ['DEFLECT']            
+    ],
+    DefC: [['DEFLECT', 'COUNTER_SUBJ']],
+    DEFLECT: [['DEFLECT']],
+    COUNTER_SUBJ: [['COUNTER_SUBJ']],
+    CLAIM: [['CLAIM']]
+  },
+
+  bandwagon: {
+    S: [
+      ['MajA', 'DIRECTIVE'], // [MAJORITY + ACTION] -> then DIRECTIVE
+      ['MAJORITY', 'ACTION'],
+      ['MAJORITY', 'DIRECTIVE'],
+      ['MAJORITY']           
+    ],
+    MajA: [['MAJORITY', 'ACTION']],
+    MAJORITY: [['MAJORITY']],
+    ACTION: [['ACTION']],
+    DIRECTIVE: [['DIRECTIVE']]
+  },
+
+  hastyGeneralization: {
+  S: [
+    ['SmI', 'Univ'],    // Small Evidence + Inference -> Universal Conclusion
+    ['SMALL_SAMPLE', 'UNIVERSAL'],
+    ['SMALL_SAMPLE', 'MAJORITY'],
+    ['SMALL_SAMPLE']   
+  ],
+  SmI: [
+    ['SMALL_SAMPLE', 'INFER'],
+    ['SMALL_SAMPLE', 'PERSON_REF']
+  ],
+  Univ: [
+    ['UNIVERSAL', 'CLAIM'],
+    ['UNIVERSAL', 'ACTION']
+  ],
+  SMALL_SAMPLE: [['SMALL_SAMPLE']],
+  INFER: [['INFER']],
+  UNIVERSAL: [['UNIVERSAL']],
+  CLAIM: [['CLAIM']],
+  ACTION: [['ACTION']],
+  PERSON_REF: [['PERSON_REF']]
+  }
+};
+
+function cnfToPDA(grammar) {
+  const transitions = {};
+  
+  for (const [lhs, productions] of Object.entries(grammar)) {
+    for (const rhs of productions) {
+      if (rhs.length === 1) {
+        const symbol = rhs[0];
+        
+        const isTerminal = Object.keys(TOKEN_CATEGORIES).includes(symbol);
+        
+        if (isTerminal) {
+          const key = `q,${symbol},${lhs}`;
+          transitions[key] = {
+            nextState: 'q',
+            stackOps: { pop: true, push: [] }
+          };
+        } else {
+          const key = `q,ε,${lhs}`;
+          if (!transitions[key]) {
+            transitions[key] = [];
+          }
+          if (Array.isArray(transitions[key])) {
+            transitions[key].push({
+              nextState: 'q',
+              stackOps: { pop: true, push: [symbol] }
+            });
+          }
+        }
+      } else if (rhs.length === 2) {
+        const key = `q,ε,${lhs}`;
+        const transition = {
+          nextState: 'q',
+          stackOps: { pop: true, push: [rhs[1], rhs[0]] }
+        };
+        
+        if (!transitions[key]) {
+          transitions[key] = [transition];
+        } else if (Array.isArray(transitions[key])) {
+          transitions[key].push(transition);
+        } else {
+          transitions[key] = [transitions[key], transition];
+        }
+      }
+    }
+  }
+  
+  return transitions;
+}
+
+class PushdownAutomaton {
+  constructor(grammar, startSymbol = 'S') {
+    this.transitions = cnfToPDA(grammar);
+    this.startSymbol = startSymbol;
+    this.reset();
+  }
+  
+  reset() {
+    this.configurations = [{ 
+      state: 'q', 
+      stack: ['$', this.startSymbol], 
+      inputIndex: 0 
+    }];
+  }
+  
+  run(inputs) {
+    this.reset();
+    const maxSteps = 1000;
+    let steps = 0;
+    
+    while (this.configurations.length > 0 && steps < maxSteps) {
+      steps++;
+      const config = this.configurations.shift();
+      const { state, stack, inputIndex } = config;
+      
+      if (inputIndex === inputs.length && stack.length === 1 && stack[0] === '$') {
+        return true;
+      }
+      
+      if (stack.length === 1 && stack[0] === '$' && inputIndex < inputs.length) {
+        continue;
+      }
+      
+      const stackTop = stack[stack.length - 1];
+      
+      const epsilonKey = `${state},ε,${stackTop}`;
+      if (this.transitions[epsilonKey]) {
+        const moves = Array.isArray(this.transitions[epsilonKey]) 
+          ? this.transitions[epsilonKey] 
+          : [this.transitions[epsilonKey]];
+        
+        for (const move of moves) {
+          const newStack = [...stack];
+          if (move.stackOps.pop) {
+            newStack.pop();
+          }
+          if (move.stackOps.push) {
+            newStack.push(...move.stackOps.push);
+          }
+          
+          this.configurations.push({
+            state: move.nextState,
+            stack: newStack,
+            inputIndex: inputIndex
+          });
+        }
+      }
+
+      if (inputIndex < inputs.length) {
+        const currentInput = inputs[inputIndex];
+        const inputKey = `${state},${currentInput},${stackTop}`;
+        
+        if (this.transitions[inputKey]) {
+          const move = this.transitions[inputKey];
+          const newStack = [...stack];
+          
+          if (move.stackOps.pop) {
+            newStack.pop();
+          }
+          if (move.stackOps.push) {
+            newStack.push(...move.stackOps.push);
+          }
+          
+          this.configurations.push({
+            state: move.nextState,
+            stack: newStack,
+            inputIndex: inputIndex + 1
+          });
+        }
+      }
+    }
+    
+    return false; 
+  }
+}
+
+class FlexiblePDA extends PushdownAutomaton {
+  constructor(grammar, startSymbol = 'S', maxSkips = 3) {
+    super(grammar, startSymbol);
+    this.maxSkips = maxSkips; // Maximum words we can skip between matching tokens
+  }
+  
+  run(inputs) {
+    this.reset();
+    this.configurations = [{ 
+      state: 'q', 
+      stack: ['$', this.startSymbol], 
+      inputIndex: 0,
+      skips: 0 
+    }];
+
+    const maxSteps = 3000; 
+    let steps = 0;
+    
+    while (this.configurations.length > 0 && steps < maxSteps) {
+      steps++;
+      const config = this.configurations.shift();
+      const { state, stack, inputIndex, skips } = config;
+      
+      if (inputIndex === inputs.length && stack.length === 1 && stack[0] === '$') {
+        return true;
+      }
+      
+      if (stack.length === 1 && stack[0] === '$') {
+        continue;
+      }
+      
+      const stackTop = stack[stack.length - 1];
+      
+      const epsilonKey = `${state},ε,${stackTop}`;
+      if (this.transitions[epsilonKey]) {
+        const moves = Array.isArray(this.transitions[epsilonKey]) 
+          ? this.transitions[epsilonKey] 
+          : [this.transitions[epsilonKey]];
+        
+        for (const move of moves) {
+          this.configurations.push({
+            state: move.nextState,
+            stack: [...stack.slice(0, -1), ...(move.stackOps.push || [])],
+            inputIndex: inputIndex,
+            skips: skips
+          });
+        }
+      }
+      
+      if (inputIndex < inputs.length) {
+        const currentInput = inputs[inputIndex];
+        const inputKey = `${state},${currentInput},${stackTop}`;
+        
+        if (this.transitions[inputKey]) {
+          const move = this.transitions[inputKey];
+          this.configurations.push({
+            state: move.nextState,
+            stack: [...stack.slice(0, -1), ...(move.stackOps.push || [])],
+            inputIndex: inputIndex + 1,
+            skips: 0
+          });
+        }
+        
+        if (skips < this.maxSkips) {
+          this.configurations.push({
+            state: state,
+            stack: [...stack],
+            inputIndex: inputIndex + 1,
+            skips: skips + 1
+          });
+        }
+      }
+    }
+    
+    return false;
+  }
+}
+
+const FALLACY_METADATA = {
+  'AD HOMINEM': "Attacking the person's character (e.g., calling them 'bobo') instead of addressing their actual argument or policy.",
+  'APPEAL TO AUTHORITY': "Claiming something is true simply because a powerful figure or 'authority' said so, without providing actual evidence.",
+  'SLIPPERY SLOPE': "Arguing that a small first step will inevitably lead to a chain of negative events without proving that it will happen.",
+  'EMOTIONAL APPEAL': "Using loaded language (like 'kawawa') to manipulate the audience's emotions instead of using valid reasoning.",
+  'BANDWAGON': "Suggesting that a claim is correct because 'everyone' or the 'majority' supports it. Popularity does not equal truth.",
+  'HASTY GENERALIZATION': "Reaching a broad conclusion based on a very small or unrepresentative sample size.",
+  'STRAWMAN': "Misrepresenting or exaggerating an opponent's position to make it easier to attack.",
+  'FALSE DILEMMA': "Presenting only two extreme options as the only possibilities, ignoring the 'middle ground' or other alternatives.",
+  'WHATABOUTISM': "A diversionary tactic used to shift focus away from a critique by pointing out the flaws of others."
+};
+
+const FALLACY_PDAS = {
+  adHominem: new FlexiblePDA(CNF_GRAMMARS.adHominem, "S", 4),
+  appealToEmotion: new FlexiblePDA(CNF_GRAMMARS.appealToEmotion, "S", 5),
+  strawman: new FlexiblePDA(CNF_GRAMMARS.strawman, "S", 6),
+  falseDilemma: new FlexiblePDA(CNF_GRAMMARS.falseDilemma, "S", 5),
+  whataboutism: new FlexiblePDA(CNF_GRAMMARS.whataboutism, "S", 4),
+  bandwagon: new FlexiblePDA(CNF_GRAMMARS.bandwagon, "S", 5),
+  hastyGeneralization: new FlexiblePDA(CNF_GRAMMARS.hastyGeneralization, "S", 8)
+};
+
+const runLogicEngine = (inputText) => {
+  const sentences = inputText.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const results = [];
+
+  sentences.forEach(sentence => {
+    const lowerSentence = sentence.toLowerCase();
+    
+    const tokenMatches = [];
+    for (const [cat, regex] of Object.entries(TOKEN_CATEGORIES)) {
+      const matches = [...lowerSentence.matchAll(new RegExp(regex.source, 'gi'))];
+      matches.forEach(match => {
+        tokenMatches.push({ category: cat, position: match.index, text: match[0] });
+      });
+    }
+    
+    tokenMatches.sort((a, b) => a.position - b.position);
+    const tags = tokenMatches.map(t => t.category);
+
+    if (tags.length < 1) return;
+
+    for (const [type, pda] of Object.entries(FALLACY_PDAS)) {
+      if (pda.run(tags)) {
+        results.push({
+          fallacy: type.replace(/([A-Z])/g, ' $1').trim().toUpperCase(),
+          sentence: sentence
+        });
+      }
+    }
+  });
+  
+  return results;
+};
+
 const CharotChecker = () => {
   const resultsRef = useRef(null);
 
@@ -61,29 +461,12 @@ const CharotChecker = () => {
   }, []);
 
   const [text, setText] = useState('');
+  const [detectedFallacies, setDetectedFallacies] = useState([]);
   const [analyzed, setAnalyzed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(false);
-  const [expandedFallacies, setExpandedFallacies] = useState({});
+  const [showInstructions, setShowInstructions] = useState(false); 
+  const [expandedFallacies, setExpandedFallacies] = useState({}); 
 
-  // Simulated detected fallacies - replace with actual detection logic
-  const detectedFallacies = [
-    {
-      name: "Ad Hominem",
-      phrase: "yuck",
-      explanation: "Attacking the person making the argument rather than the argument itself."
-    },
-    {
-      name: "Straw Man",
-      phrase: "yuck",
-      explanation: "Misrepresenting someone's argument to make it easier to attack."
-    },
-    {
-      name: "False Dilemma",
-      phrase: "example phrase",
-      explanation: "Presenting two opposing options as the only possibilities when more exist."
-    }
-  ];
 
   const toggleFallacy = (index) => {
     setExpandedFallacies(prev => ({
@@ -107,19 +490,23 @@ const CharotChecker = () => {
     setLoading(true);
     setAnalyzed(false);
 
-    // Simulate API call
     setTimeout(() => {
+      const results = runLogicEngine(text);
+      
+      const mappedResults = results.map(res => ({
+        name: res.fallacy.split(' ').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' '), 
+        phrase: res.sentence,
+        explanation: FALLACY_METADATA[res.fallacy] || "Logical inconsistency detected."
+      }));
+
+      setDetectedFallacies(mappedResults);
       setLoading(false);
       setAnalyzed(true);
 
-      // Scroll to results after they appear
       setTimeout(() => {
-        resultsRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 150);
-    }, 1200);
+    }, 1000);
   };
 
   /* INLINE HIGHLIGHT RENDERER */
@@ -542,3 +929,4 @@ const CharotChecker = () => {
 };
 
 export default CharotChecker;
+export { runLogicEngine };
